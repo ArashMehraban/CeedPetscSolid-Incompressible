@@ -223,6 +223,10 @@ PetscErrorCode CreateRestrictionPlex(Ceed ceed, CeedInterlaceMode imode,
                                      CeedInt P, CeedInt ncomp,
                                      CeedElemRestriction *Erestrict, DM dm);
 
+// Create pressure basis from displacement basis
+PetscErrorCode CreatePressureBasis(Ceed ceed, CeedInt degree, CeedBasis basisu,
+                                   CeedBasis *basisp);
+
 // Set up libCEED for a given degree
 PetscErrorCode SetupLibceedFineLevel(DM dm, Ceed ceed, AppCtx appCtx,
                                      Physics phys, CeedData *data,
