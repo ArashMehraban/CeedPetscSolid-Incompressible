@@ -17,8 +17,8 @@
 /// @file
 /// Linear elasticity for solid mechanics example using PETSc
 
-#ifndef LIN_ELAS_H
-#define LIN_ELAS_H
+#ifndef INCOMPLIN_ELAS_H
+#define INCOMPLIN_ELAS_H
 
 #ifndef __CUDACC__
 #  include <math.h>
@@ -36,7 +36,7 @@ struct Physics_private {
 // -----------------------------------------------------------------------------
 // Residual evaluation for linear elasticity
 // -----------------------------------------------------------------------------
-CEED_QFUNCTION(LinElasF)(void *ctx, CeedInt Q, const CeedScalar *const *in,
+CEED_QFUNCTION(IncompLinElasF)(void *ctx, CeedInt Q, const CeedScalar *const *in,
                          CeedScalar *const *out) {
   // *INDENT-OFF*
   // Inputs
@@ -160,7 +160,7 @@ CEED_QFUNCTION(LinElasF)(void *ctx, CeedInt Q, const CeedScalar *const *in,
 // -----------------------------------------------------------------------------
 // Jacobian evaluation for linear elasticity
 // -----------------------------------------------------------------------------
-CEED_QFUNCTION(LinElasdF)(void *ctx, CeedInt Q, const CeedScalar *const *in,
+CEED_QFUNCTION(IncompLinElasdF)(void *ctx, CeedInt Q, const CeedScalar *const *in,
                           CeedScalar *const *out) {
   // *INDENT-OFF*
   // Inputs

@@ -27,14 +27,14 @@ PetscErrorCode ProcessCommandLineOptions(MPI_Comm comm, AppCtx appCtx) {
   PetscErrorCode ierr;
   PetscBool degreeFalg   = PETSC_FALSE;
   PetscBool ceedFlag     = PETSC_FALSE;
-  appCtx->problemChoice  = ELAS_LIN;       // Default - Linear Elasticity
+  appCtx->problemChoice  = ELAS_INCOMPLIN; // Default - Incompressible Linear Elasticity
   appCtx->degree         = 3;
   appCtx->forcingChoice  = FORCE_NONE;     // Default - no forcing term
 
   PetscFunctionBeginUser;
 
   ierr = PetscOptionsBegin(comm, NULL,
-                           "Elasticity / Hyperelasticity in PETSc with libCEED",
+                           "Incompressible Elasticity / Hyperelasticity in PETSc with libCEED",
                            NULL); CHKERRQ(ierr);
 
   ierr = PetscOptionsString("-ceed", "CEED resource specifier",
@@ -63,7 +63,7 @@ PetscErrorCode ProcessCommandLineOptions(MPI_Comm comm, AppCtx appCtx) {
                           (PetscEnum *)&appCtx->problemChoice, NULL);
   CHKERRQ(ierr);
 
-  appCtx->numIncrements = appCtx->problemChoice == ELAS_LIN ? 1 : 10;
+  appCtx->numIncrements = appCtx->problemChoice == ELAS_INCOMPLIN ? 1 : 10;
   ierr = PetscOptionsInt("-num_steps", "Number of pseudo-time steps",
                          NULL, appCtx->numIncrements, &appCtx->numIncrements,
                          NULL); CHKERRQ(ierr);

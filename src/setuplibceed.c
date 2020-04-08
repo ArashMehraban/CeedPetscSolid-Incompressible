@@ -20,9 +20,9 @@
 #include "../elasticity.h"
 
 #include "../qfunctions/common.h"            // Geometric factors
-#include "../qfunctions/linElas.h"           // Linear elasticity
-#include "../qfunctions/hyperSS.h"           // Hyperelasticity small strain
-#include "../qfunctions/hyperFS.h"           // Hyperelasticity finite strain
+#include "../qfunctions/incompLinElas.h"           // Linear elasticity
+#include "../qfunctions/incompHyperSS.h"           // Hyperelasticity small strain
+#include "../qfunctions/incompHyperFS.h"           // Hyperelasticity finite strain
 #include "../qfunctions/constantForce.h"     // Constant forcing function
 #include "../qfunctions/manufacturedForce.h" // Manufactured solution forcing
 #include "../qfunctions/manufacturedTrue.h"  // Manufactured true solution
@@ -32,39 +32,39 @@
 // -----------------------------------------------------------------------------
 // Data specific to each problem option
 problemData problemOptions[3] = {
-  [ELAS_LIN] = {
+  [ELAS_INCOMPLIN] = {
     .qdatasize = 10, // For linear elasticity, 6 would be sufficient
     .setupgeo = SetupGeo,
-    .apply = LinElasF,
-    .jacob = LinElasdF,
+    .apply = IncompLinElasF,
+    .jacob = IncompLinElasdF,
     .energy = HyperFSEnergy,          // TODO: Update with linear strain energy
     .setupgeofname = SetupGeo_loc,
-    .applyfname = LinElasF_loc,
-    .jacobfname = LinElasdF_loc,
+    .applyfname = IncompLinElasF_loc,
+    .jacobfname = IncompLinElasdF_loc,
     .energyfname = HyperFSEnergy_loc, // TODO: Update with linear strain energy
     .qmode = CEED_GAUSS
   },
-  [ELAS_HYPER_SS] = {
+  [ELAS_INCOMPHYPER_SS] = {
     .qdatasize = 10,
     .setupgeo = SetupGeo,
-    .apply = HyperSSF,
-    .jacob = HyperSSdF,
+    .apply = IncompHyperSSF,
+    .jacob = IncompHyperSSdF,
     .energy = HyperFSEnergy,       // TODO: Update with linear strain energy
     .setupgeofname = SetupGeo_loc,
-    .applyfname = HyperSSF_loc,
-    .jacobfname = HyperSSdF_loc,
+    .applyfname = IncompHyperSSF_loc,
+    .jacobfname = IncompHyperSSdF_loc,
     .energyfname = HyperFSEnergy_loc, // TODO: Update with linear strain energy
     .qmode = CEED_GAUSS
   },
-  [ELAS_HYPER_FS] = {
+  [ELAS_INCOMPHYPER_FS] = {
     .qdatasize = 10,
     .setupgeo = SetupGeo,
-    .apply = HyperFSF,
-    .jacob = HyperFSdF,
+    .apply = IncompHyperFSF,
+    .jacob = IncompHyperFSdF,
     .energy = HyperFSEnergy,
     .setupgeofname = SetupGeo_loc,
-    .applyfname = HyperFSF_loc,
-    .jacobfname = HyperFSdF_loc,
+    .applyfname = IncompHyperFSF_loc,
+    .jacobfname = IncompHyperFSdF_loc,
     .energyfname = HyperFSEnergy_loc,
     .qmode = CEED_GAUSS
   }
@@ -236,7 +236,7 @@ PetscErrorCode SetupLibceedFineLevel(DM dm, Ceed ceed, AppCtx appCtx,
                                    CEED_STRIDES_BACKEND,
                                    &data[fineLevel]->Erestrictqdi);
   // -- State vector gradient restriction
-  if (problemChoice != ELAS_LIN)
+  if (problemChoice != ELAS_INCOMPLIN)
     CeedElemRestrictionCreateStrided(ceed, nelem, Q*Q*Q, nelem*Q*Q*Q,
                                      dim*ncompu, CEED_STRIDES_BACKEND,
                                      &data[fineLevel]->ErestrictGradui);
@@ -280,7 +280,7 @@ PetscErrorCode SetupLibceedFineLevel(DM dm, Ceed ceed, AppCtx appCtx,
   // -- Geometric data vector
   CeedVectorCreate(ceed, qdatasize*nelem*nqpts, &data[fineLevel]->qdata);
   // -- State gradient vector
-  if (problemChoice != ELAS_LIN)
+  if (problemChoice != ELAS_INCOMPLIN)
     CeedVectorCreate(ceed, dim*ncompu*nelem*nqpts, &data[fineLevel]->gradu);
   // -- Energy vector
   CeedVectorCreate(ceed, nelem*nqpts, &data[fineLevel]->energy);
@@ -330,7 +330,7 @@ PetscErrorCode SetupLibceedFineLevel(DM dm, Ceed ceed, AppCtx appCtx,
   CeedQFunctionAddInput(qfApply, "du", ncompu*dim, CEED_EVAL_GRAD);
   CeedQFunctionAddInput(qfApply, "qdata", qdatasize, CEED_EVAL_NONE);
   CeedQFunctionAddOutput(qfApply, "dv", ncompu*dim, CEED_EVAL_GRAD);
-  if (problemChoice != ELAS_LIN)
+  if (problemChoice != ELAS_INCOMPLIN)
     CeedQFunctionAddOutput(qfApply, "gradu", ncompu*dim, CEED_EVAL_NONE);
   CeedQFunctionSetContext(qfApply, phys, sizeof(phys));
 
@@ -343,7 +343,7 @@ PetscErrorCode SetupLibceedFineLevel(DM dm, Ceed ceed, AppCtx appCtx,
                        CEED_BASIS_COLLOCATED, data[fineLevel]->qdata);
   CeedOperatorSetField(opApply, "dv", data[fineLevel]->Erestrictu,
                        data[fineLevel]->basisu, CEED_VECTOR_ACTIVE);
-  if (problemChoice != ELAS_LIN)
+  if (problemChoice != ELAS_INCOMPLIN)
     CeedOperatorSetField(opApply, "gradu", data[fineLevel]->ErestrictGradui,
                          data[fineLevel]->basisu, data[fineLevel]->gradu);
   // -- Save libCEED data
@@ -547,7 +547,7 @@ PetscErrorCode SetupLibceedLevel(DM dm, Ceed ceed, AppCtx appCtx, Physics phys,
                               &qfJacob);
   CeedQFunctionAddInput(qfJacob, "deltadu", ncompu*dim, CEED_EVAL_GRAD);
   CeedQFunctionAddInput(qfJacob, "qdata", qdatasize, CEED_EVAL_NONE);
-  if (problemChoice != ELAS_LIN)
+  if (problemChoice != ELAS_INCOMPLIN)
     CeedQFunctionAddInput(qfJacob, "gradu", ncompu*dim, CEED_EVAL_NONE);
   CeedQFunctionAddOutput(qfJacob, "deltadv", ncompu*dim, CEED_EVAL_GRAD);
   CeedQFunctionSetContext(qfJacob, phys, sizeof(phys));
@@ -561,7 +561,7 @@ PetscErrorCode SetupLibceedLevel(DM dm, Ceed ceed, AppCtx appCtx, Physics phys,
                        CEED_BASIS_COLLOCATED, data[fineLevel]->qdata);
   CeedOperatorSetField(opJacob, "deltadv", data[level]->Erestrictu,
                        data[level]->basisu, CEED_VECTOR_ACTIVE);
-  if (problemChoice != ELAS_LIN)
+  if (problemChoice != ELAS_INCOMPLIN)
     CeedOperatorSetField(opJacob, "gradu", data[fineLevel]->ErestrictGradui,
                          CEED_BASIS_COLLOCATED, data[fineLevel]->gradu);
 

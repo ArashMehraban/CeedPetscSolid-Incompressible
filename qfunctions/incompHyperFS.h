@@ -17,8 +17,8 @@
 /// @file
 /// Hyperelasticity, finite strain for solid mechanics example using PETSc
 
-#ifndef HYPER_FS_H
-#define HYPER_FS_H
+#ifndef INCOMPHYPER_FS_H
+#define INCOMPHYPER_FS_H
 
 #ifndef __CUDACC__
 #  include <math.h>
@@ -69,7 +69,7 @@ static inline CeedScalar log1p_series_shifted(CeedScalar x) {
 // -----------------------------------------------------------------------------
 // Common computations between FS and dFS
 // -----------------------------------------------------------------------------
-static inline int commonFS(const CeedScalar lambda, const CeedScalar mu,
+static inline int commonIncompFS(const CeedScalar lambda, const CeedScalar mu,
                            const CeedScalar gradu[3][3], CeedScalar Swork[6],
                            CeedScalar Cinvwork[6], CeedScalar *llnj) {
   // E - Green-Lagrange strain tensor
@@ -136,7 +136,7 @@ static inline int commonFS(const CeedScalar lambda, const CeedScalar mu,
 // -----------------------------------------------------------------------------
 // Residual evaluation for hyperelasticity, finite strain
 // -----------------------------------------------------------------------------
-CEED_QFUNCTION(HyperFSF)(void *ctx, CeedInt Q, const CeedScalar *const *in,
+CEED_QFUNCTION(IncompHyperFSF)(void *ctx, CeedInt Q, const CeedScalar *const *in,
                          CeedScalar *const *out) {
   // *INDENT-OFF*
   // Inputs
@@ -240,7 +240,7 @@ CEED_QFUNCTION(HyperFSF)(void *ctx, CeedInt Q, const CeedScalar *const *in,
                                           gradu[2][2][i]}
                                         };
     // *INDENT-ON*
-    commonFS(lambda, mu, tempgradu, Swork, Cinvwork, &llnj);
+    commonIncompFS(lambda, mu, tempgradu, Swork, Cinvwork, &llnj);
 
     // Second Piola-Kirchhoff (S)
     // *INDENT-OFF*
@@ -275,7 +275,7 @@ CEED_QFUNCTION(HyperFSF)(void *ctx, CeedInt Q, const CeedScalar *const *in,
 // -----------------------------------------------------------------------------
 // Jacobian evaluation for hyperelasticity, finite strain
 // -----------------------------------------------------------------------------
-CEED_QFUNCTION(HyperFSdF)(void *ctx, CeedInt Q, const CeedScalar *const *in,
+CEED_QFUNCTION(IncompHyperFSdF)(void *ctx, CeedInt Q, const CeedScalar *const *in,
                           CeedScalar *const *out) {
   // *INDENT-OFF*
   // Inputs
@@ -368,7 +368,7 @@ CEED_QFUNCTION(HyperFSdF)(void *ctx, CeedInt Q, const CeedScalar *const *in,
                                           gradu[2][2][i]}
                                         };
     // *INDENT-ON*
-    commonFS(lambda, mu, tempgradu, Swork, Cinvwork, &llnj);
+    commonIncompFS(lambda, mu, tempgradu, Swork, Cinvwork, &llnj);
 
     // deltaE - Green-Lagrange strain tensor
     const CeedInt indj[6] = {0, 1, 2, 1, 0, 0}, indk[6] = {0, 1, 2, 2, 2, 1};

@@ -41,16 +41,16 @@ struct Physics_private {
 // -----------------------------------------------------------------------------
 // Problem options
 typedef enum {
-  ELAS_LIN = 0, ELAS_HYPER_SS = 1, ELAS_HYPER_FS = 2
+  ELAS_INCOMPLIN = 0, ELAS_INCOMPHYPER_SS = 1, ELAS_INCOMPHYPER_FS = 2
 } problemType;
-static const char *const problemTypes[] = {"linElas",
-                                           "hyperSS",
-                                           "hyperFS",
+static const char *const problemTypes[] = {"incomplinElas",
+                                           "incomphyperSS",
+                                           "incomphyperFS",
                                            "problemType","ELAS_",0
                                           };
-static const char *const problemTypesForDisp[] = {"Linear elasticity",
-                                                  "Hyper elasticity small strain",
-                                                  "Hyper elasticity finite strain"
+static const char *const problemTypesForDisp[] = {"Incompressible Linear elasticity",
+                                                  "Incompressible Hyper elasticity small strain",
+                                                  "Incompressible Hyper elasticity finite strain"
                                                  };
 
 // Forcing function options

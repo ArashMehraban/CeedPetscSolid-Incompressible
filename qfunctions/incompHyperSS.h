@@ -17,8 +17,8 @@
 /// @file
 /// Hyperelasticity, small strain for solid mechanics example using PETSc
 
-#ifndef HYPER_SS_H
-#define HYPER_SS_H
+#ifndef INCOMPHYPER_SS_H
+#define INCOMPHYPER_SS_H
 
 #ifndef __CUDACC__
 #  include <math.h>
@@ -57,7 +57,7 @@ static inline CeedScalar log1p_series(CeedScalar x) {
 // -----------------------------------------------------------------------------
 // Residual evaluation for hyperelasticity, small strain
 // -----------------------------------------------------------------------------
-CEED_QFUNCTION(HyperSSF)(void *ctx, CeedInt Q, const CeedScalar *const *in,
+CEED_QFUNCTION(IncompHyperSSF)(void *ctx, CeedInt Q, const CeedScalar *const *in,
                          CeedScalar *const *out) {
   // *INDENT-OFF*
   // Inputs
@@ -184,7 +184,7 @@ CEED_QFUNCTION(HyperSSF)(void *ctx, CeedInt Q, const CeedScalar *const *in,
 // -----------------------------------------------------------------------------
 // Jacobian evaluation for hyperelasticity, small strain
 // -----------------------------------------------------------------------------
-CEED_QFUNCTION(HyperSSdF)(void *ctx, CeedInt Q, const CeedScalar *const *in,
+CEED_QFUNCTION(IncompHyperSSdF)(void *ctx, CeedInt Q, const CeedScalar *const *in,
                           CeedScalar *const *out) {
   // *INDENT-OFF*
   // Inputs
