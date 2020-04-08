@@ -1,0 +1,44 @@
+
+-- Elastisticy Example - libCEED + PETSc --
+  libCEED:
+    libCEED Backend                    : /cpu/self/xsmm/blocked
+  Problem:
+    Problem Name                       : Linear elasticity
+    Forcing Function                   : Manufactured solution
+    Boundary Condition                 : Manufactured solution
+  Mesh:
+    File                               : ./meshes/cylinder8_399Ke_4ss_us.exo
+    Number of 1D Basis Nodes (p)       : 5
+    Number of 1D Quadrature Points (q) : 5
+    Global nodes                       : 24990840
+    Owned nodes                        : 24990840
+    DoF per node                       : 3
+  Multigrid:
+    Type                               : P-multigrid, logarithmic coarsening
+    Number of Levels                   : 3
+    Level 0 (coarse):
+      Number of 1D Basis Nodes (p)     : 2
+      Global Nodes                     : 364518
+      Owned Nodes                      : 364518
+    Level 2 (fine):
+      Number of 1D Basis Nodes (p)     : 5
+      Global Nodes                     : 24990840
+      Owned Nodes                      : 24990840
+/projects/arme5062/software/libCEED_sky/interface/ceed.c:237 in CeedMallocArray(): posix_memalign failed to allocate -253391296 members of size 8
+
+
+===================================================================================
+=   BAD TERMINATION OF ONE OF YOUR APPLICATION PROCESSES
+=   PID 156774 RUNNING AT ssky0943
+=   EXIT CODE: 134
+=   CLEANING UP REMAINING PROCESSES
+=   YOU CAN IGNORE THE BELOW CLEANUP MESSAGES
+===================================================================================
+
+===================================================================================
+=   BAD TERMINATION OF ONE OF YOUR APPLICATION PROCESSES
+=   PID 156774 RUNNING AT ssky0943
+=   EXIT CODE: 6
+=   CLEANING UP REMAINING PROCESSES
+=   YOU CAN IGNORE THE BELOW CLEANUP MESSAGES
+===================================================================================
