@@ -53,6 +53,7 @@ CEED_QFUNCTION(IncompLinElasF)(void *ctx, CeedInt Q, const CeedScalar *const *in
   const Physics context = (Physics)ctx;
   const CeedScalar E  = context->E;
   const CeedScalar nu = context->nu;
+  const CeedScalar mu = E/2*(1.+2*nu);
 
   // Quadrature Point Loop
   CeedPragmaSIMD
@@ -112,36 +113,37 @@ CEED_QFUNCTION(IncompLinElasF)(void *ctx, CeedInt Q, const CeedScalar *const *in
 
     //
     // Formulation uses Voigt notation:
+    //   Deviatoric
     //  stress (sigma)      strain (epsilon)
     //
-    //    [sigma00]             [e00]
-    //    [sigma11]             [e11]
-    //    [sigma22]   =  S   *  [e22]
-    //    [sigma12]             [e12]
-    //    [sigma02]             [e02]
-    //    [sigma01]             [e01]
+    //    [sigmaDev00]             [e00]
+    //    [sigmaDev11]             [e11]
+    //    [sigmaDev22]   =  S   *  [e22]
+    //    [sigmaDev12]             [e12]
+    //    [sigmaDev02]             [e02]
+    //    [sigmaDev01]             [e01]
     //
     //        where
-    //                         [1-nu   nu    nu                                    ]
-    //                         [ nu   1-nu   nu                                    ]
-    //                         [ nu    nu   1-nu                                   ]
-    // S = E/((1+nu)*(1-2*nu)) [                  (1-2*nu)/2                       ]
-    //                         [                             (1-2*nu)/2            ]
-    //                         [                                        (1-2*nu)/2 ]
+    //          [  4/3  -1/3    -1/3          ]
+    //          [ -1/3   4/3    -1/3          ]
+    //          [ -1/3  -1/3     4/3          ]
+    // S = mu * [                     1       ]
+    //          [                        1    ]
+    //          [                           1 ]
+    //  with mu = E/2*(1+2*nu)
 
     // Above Voigt Notation is placed in a 3x3 matrix:
-    const CeedScalar ss      =  E / ((1 + nu)*(1 - 2*nu));
-    const CeedScalar sigma00 = ss*((1 - nu)*e[0][0] + nu*e[1][1] + nu*e[2][2]),
-                     sigma11 = ss*(nu*e[0][0] + (1 - nu)*e[1][1] + nu*e[2][2]),
-                     sigma22 = ss*(nu*e[0][0] + nu*e[1][1] + (1 - nu)*e[2][2]),
-                     sigma12 = ss*(1 - 2*nu)*e[1][2]*0.5,
-                     sigma02 = ss*(1 - 2*nu)*e[0][2]*0.5,
-                     sigma01 = ss*(1 - 2*nu)*e[0][1]*0.5;
+    const CeedScalar sigmaDev00 = mu*( 4./3*e[0][0] - 1./3*e[1][1] - 1./3*e[2][2]),
+                     sigmaDev11 = mu*(-1./3*e[0][0] + 4./3*e[1][1] - 1./3*e[2][2]),
+                     sigmaDev22 = mu*(-1./3*e[0][0] - 1./3*e[1][1] + 4./3*e[2][2]),
+                     sigmaDev12 = mu*e[1][2],
+                     sigmaDev02 = mu*e[0][2],
+                     sigmaDev01 = mu*e[0][1];
     // *INDENT-OFF*
-    const CeedScalar sigma[3][3] = {{sigma00, sigma01, sigma02},
-                                    {sigma01, sigma11, sigma12},
-                                    {sigma02, sigma12, sigma22}
-                                   };
+    const CeedScalar sigmaDev[3][3] = {{sigmaDev00, sigmaDev01, sigmaDev02},
+                                       {sigmaDev01, sigmaDev11, sigmaDev12},
+                                       {sigmaDev02, sigmaDev12, sigmaDev22}
+                                      };
     // *INDENT-ON*
 
     // Apply dXdx^T and weight to sigma
@@ -149,7 +151,7 @@ CEED_QFUNCTION(IncompLinElasF)(void *ctx, CeedInt Q, const CeedScalar *const *in
       for (CeedInt k = 0; k < 3; k++) { // Derivative
         dvdX[k][j][i] = 0;
         for (CeedInt m = 0; m < 3; m++)
-          dvdX[k][j][i] += dXdx[k][m] * sigma[j][m] * wJ;
+          dvdX[k][j][i] += dXdx[k][m] * sigmaDev[j][m] * wJ;
       }
 
   } // End of Quadrature Point Loop
@@ -177,6 +179,7 @@ CEED_QFUNCTION(IncompLinElasdF)(void *ctx, CeedInt Q, const CeedScalar *const *i
   const Physics context = (Physics)ctx;
   const CeedScalar E  = context->E;
   const CeedScalar nu = context->nu;
+  const CeedScalar mu = E/2*(1.+2*nu);
 
   // Quadrature Point Loop
   CeedPragmaSIMD
@@ -234,36 +237,38 @@ CEED_QFUNCTION(IncompLinElasdF)(void *ctx, CeedInt Q, const CeedScalar *const *i
 
     // *INDENT-ON*
     // Formulation uses Voigt notation:
+    //    Deviatoric
     //  stress (sigma)      strain (epsilon)
     //
-    //    [dsigma00]             [de00]
-    //    [dsigma11]             [de11]
-    //    [dsigma22]   =  S   *  [de22]
-    //    [dsigma12]             [de12]
-    //    [dsigma02]             [de02]
-    //    [dsigma01]             [de01]
+    //    [dsigmaDev00]             [de00]
+    //    [dsigmaDev11]             [de11]
+    //    [dsigmaDev22]   =  S   *  [de22]
+    //    [dsigmaDev12]             [de12]
+    //    [dsigmaDev02]             [de02]
+    //    [dsigmaDev01]             [de01]
     //
     //        where
-    //                         [1-nu   nu    nu                                    ]
-    //                         [ nu   1-nu   nu                                    ]
-    //                         [ nu    nu   1-nu                                   ]
-    // S = E/((1+nu)*(1-2*nu)) [                  (1-2*nu)/2                       ]
-    //                         [                             (1-2*nu)/2            ]
-    //                         [                                        (1-2*nu)/2 ]
+    //          [  4/3  -1/3    -1/3          ]
+    //          [ -1/3   4/3    -1/3          ]
+    //          [ -1/3  -1/3     4/3          ]
+    // S = mu * [                     1       ]
+    //          [                        1    ]
+    //          [                           1 ]
+    //  with mu = E/2*(1+2*nu)
 
     // Above Voigt Notation is placed in a 3x3 matrix:
-    const CeedScalar ss      =  E / ((1 + nu)*(1 - 2*nu));
-    const CeedScalar dsigma00 = ss*((1 - nu)*de[0][0]+nu*de[1][1]+nu*de[2][2]),
-                     dsigma11 = ss*(nu*de[0][0]+(1 - nu)*de[1][1]+nu*de[2][2]),
-                     dsigma22 = ss*(nu*de[0][0]+nu*de[1][1]+(1 - nu)*de[2][2]),
-                     dsigma12 = ss*(1 - 2*nu)*de[1][2] / 2,
-                     dsigma02 = ss*(1 - 2*nu)*de[0][2] / 2,
-                     dsigma01 = ss*(1 - 2*nu)*de[0][1] / 2;
+    const CeedScalar dsigmaDev00 = mu*( 4./3*de[0][0] - 1./3*de[1][1] - 1./3*de[2][2]),
+                     dsigmaDev11 = mu*(-1./3*de[0][0] + 4./3*de[1][1] - 1./3*de[2][2]),
+                     dsigmaDev22 = mu*(-1./3*de[0][0] - 1./3*de[1][1] + 4./3*de[2][2]),
+                     dsigmaDev12 = mu*de[1][2],
+                     dsigmaDev02 = mu*de[0][2],
+                     dsigmaDev01 = mu*de[0][1];
+
     // *INDENT-OFF*
-    const CeedScalar dsigma[3][3] = {{dsigma00, dsigma01, dsigma02},
-                                     {dsigma01, dsigma11, dsigma12},
-                                     {dsigma02, dsigma12, dsigma22}
-                                    };
+    const CeedScalar dsigmaDev[3][3] = {{dsigmaDev00, dsigmaDev01, dsigmaDev02},
+                                        {dsigmaDev01, dsigmaDev11, dsigmaDev12},
+                                        {dsigmaDev02, dsigmaDev12, dsigmaDev22}
+                                       };
     // *INDENT-ON*
 
     // Apply dXdx^T and weight
@@ -271,7 +276,7 @@ CEED_QFUNCTION(IncompLinElasdF)(void *ctx, CeedInt Q, const CeedScalar *const *i
       for (CeedInt k = 0; k < 3 ; k++) { // Derivative
         deltadvdX[k][j][i] = 0;
         for (CeedInt m = 0; m < 3; m++)
-          deltadvdX[k][j][i] += dXdx[k][m] * dsigma[j][m] * wJ;
+          deltadvdX[k][j][i] += dXdx[k][m] * dsigmaDev[j][m] * wJ;
       }
 
   } // End of Quadrature Point Loop
