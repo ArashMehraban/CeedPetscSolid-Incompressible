@@ -41,10 +41,12 @@ CEED_QFUNCTION(IncompLinElasF)(void *ctx, CeedInt Q, const CeedScalar *const *in
   // *INDENT-OFF*
   // Inputs
   const CeedScalar (*ug)[3][CEED_Q_VLA] = (const CeedScalar(*)[3][CEED_Q_VLA])in[0],
-                   (*qdata)[CEED_Q_VLA] = (const CeedScalar(*)[CEED_Q_VLA])in[1];
+                   (*qdata)[CEED_Q_VLA] = (const CeedScalar(*)[CEED_Q_VLA])in[1],
+                   *pressure = (const CeedScalar(*))in[2];
 
   // Outputs
-  CeedScalar (*dvdX)[3][CEED_Q_VLA] = (CeedScalar(*)[3][CEED_Q_VLA])out[0];
+  CeedScalar (*dvdX)[3][CEED_Q_VLA] = (CeedScalar(*)[3][CEED_Q_VLA])out[0],
+             *vPressure = (CeedScalar(*))out[1]; //test function for pressure
              // gradu not used for linear elasticity
              // (*gradu)[3][CEED_Q_VLA] = (CeedScalar(*)[3][CEED_Q_VLA])out[1];
   // *INDENT-ON*
@@ -53,7 +55,8 @@ CEED_QFUNCTION(IncompLinElasF)(void *ctx, CeedInt Q, const CeedScalar *const *in
   const Physics context = (Physics)ctx;
   const CeedScalar E  = context->E;
   const CeedScalar nu = context->nu;
-  const CeedScalar mu = E/2*(1.+2*nu);
+  const CeedScalar mu = E/(2*(1.+2*nu)); // for Deviatoric stress
+  const CeedScalar Kbulk=E/(3*(1.-2*nu)); //for pressure
 
   // Quadrature Point Loop
   CeedPragmaSIMD
@@ -71,7 +74,7 @@ CEED_QFUNCTION(IncompLinElasF)(void *ctx, CeedInt Q, const CeedScalar *const *in
                                     ug[2][2][i]}
                                   };
     // -- Qdata
-    const CeedScalar wJ         =   qdata[0][i];
+    const CeedScalar wdetJ      =   qdata[0][i];
     const CeedScalar dXdx[3][3] = {{qdata[1][i],
                                     qdata[2][i],
                                     qdata[3][i]},
@@ -82,6 +85,7 @@ CEED_QFUNCTION(IncompLinElasF)(void *ctx, CeedInt Q, const CeedScalar *const *in
                                     qdata[8][i],
                                     qdata[9][i]}
                                   };
+
     // *INDENT-ON*
 
     // Compute gradu
@@ -111,7 +115,6 @@ CEED_QFUNCTION(IncompLinElasF)(void *ctx, CeedInt Q, const CeedScalar *const *in
                                };
     // *INDENT-ON*
 
-    //
     // Formulation uses Voigt notation:
     //   Deviatoric
     //  stress (sigma)      strain (epsilon)
@@ -146,14 +149,30 @@ CEED_QFUNCTION(IncompLinElasF)(void *ctx, CeedInt Q, const CeedScalar *const *in
                                       };
     // *INDENT-ON*
 
+    //  [A  B^T]   [u]   [rhs_u]
+    //  [B  C  ] * [p] = [rhs_p]
+
+    // Populate A
     // Apply dXdx^T and weight to sigma
     for (CeedInt j = 0; j < 3; j++)     // Component
       for (CeedInt k = 0; k < 3; k++) { // Derivative
         dvdX[k][j][i] = 0;
         for (CeedInt m = 0; m < 3; m++)
-          dvdX[k][j][i] += dXdx[k][m] * sigmaDev[j][m] * wJ;
+          dvdX[k][j][i] += dXdx[k][m] * sigmaDev[j][m] * wdetJ;
       }
 
+    //Populate B
+    const CeedScalar VolStrain = gradu[0][0] + gradu[1][1] + gradu[2][2];
+    vPressure[i] = VolStrain*wdetJ;
+
+    //Populate B^T
+    for (CeedInt j = 0; j < 3; j++)     // Component
+      for (CeedInt k = 0; k < 3; k++) { // Derivative
+          dvdX[k][j][i] += dXdx[k][j] * pressure[i] * wdetJ;
+      }
+
+    //Populate C
+    vPressure[i] += pressure[i]*wdetJ/Kbulk;
   } // End of Quadrature Point Loop
 
   return 0;
@@ -167,19 +186,22 @@ CEED_QFUNCTION(IncompLinElasdF)(void *ctx, CeedInt Q, const CeedScalar *const *i
   // *INDENT-OFF*
   // Inputs
   const CeedScalar (*deltaug)[3][CEED_Q_VLA] = (const CeedScalar(*)[3][CEED_Q_VLA])in[0],
-                   (*qdata)[CEED_Q_VLA] = (const CeedScalar(*)[CEED_Q_VLA])in[1];
+                   (*qdata)[CEED_Q_VLA] = (const CeedScalar(*)[CEED_Q_VLA])in[1],
+                   *deltaPressure = (const CeedScalar(*))in[2];
                    // gradu not used for linear elasticity
                    // (*gradu)[3][Q] = (CeedScalar(*)[3][Q])in[2];
 
   // Outputs
-  CeedScalar (*deltadvdX)[3][CEED_Q_VLA] = (CeedScalar(*)[3][CEED_Q_VLA])out[0];
+  CeedScalar (*deltadvdX)[3][CEED_Q_VLA] = (CeedScalar(*)[3][CEED_Q_VLA])out[0],
+             *vDeltaPressure = (CeedScalar(*))out[1]; //test function for pressure;
   // *INDENT-ON*
 
   // Context
   const Physics context = (Physics)ctx;
   const CeedScalar E  = context->E;
   const CeedScalar nu = context->nu;
-  const CeedScalar mu = E/2*(1.+2*nu);
+  const CeedScalar mu = E/(2*(1.+2*nu)); //for Deviatoric stress
+  const CeedScalar Kbulk=E/(3*(1.-2*nu));//for pressure
 
   // Quadrature Point Loop
   CeedPragmaSIMD
@@ -197,7 +219,7 @@ CEED_QFUNCTION(IncompLinElasdF)(void *ctx, CeedInt Q, const CeedScalar *const *i
                                        deltaug[2][2][i]}
                                      };
     // -- Qdata
-    const CeedScalar wJ         =      qdata[0][i];
+    const CeedScalar wdetJ      =      qdata[0][i];
     const CeedScalar dXdx[3][3] =    {{qdata[1][i],
                                        qdata[2][i],
                                        qdata[3][i]},
@@ -271,13 +293,30 @@ CEED_QFUNCTION(IncompLinElasdF)(void *ctx, CeedInt Q, const CeedScalar *const *i
                                        };
     // *INDENT-ON*
 
+    //  [A  B^T]   [u]   [rhs_u]
+    //  [B  C  ] * [p] = [rhs_p]
+
+    //Populate A
     // Apply dXdx^T and weight
     for (CeedInt j = 0; j < 3; j++)     // Component
       for (CeedInt k = 0; k < 3 ; k++) { // Derivative
         deltadvdX[k][j][i] = 0;
         for (CeedInt m = 0; m < 3; m++)
-          deltadvdX[k][j][i] += dXdx[k][m] * dsigmaDev[j][m] * wJ;
+          deltadvdX[k][j][i] += dXdx[k][m] * dsigmaDev[j][m] * wdetJ;
       }
+
+    //Populate B
+    const CeedScalar deltaVolStrain = graddeltau[0][0] + graddeltau[1][1] + graddeltau[2][2];
+    vDeltaPressure[i] = deltaVolStrain*wdetJ;
+
+    //Populate B^T
+    for (CeedInt j = 0; j < 3; j++)     // Component
+      for (CeedInt k = 0; k < 3; k++) { // Derivative
+        deltadvdX[k][j][i] += dXdx[k][j] * deltaPressure[i] * wdetJ;
+      }
+
+    //Populate C
+    vDeltaPressure[i] += deltaPressure[i]*wdetJ/Kbulk;
 
   } // End of Quadrature Point Loop
 
