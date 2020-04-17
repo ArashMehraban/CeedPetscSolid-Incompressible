@@ -20,12 +20,14 @@
 #include "../elasticity.h"
 
 #include "../qfunctions/common.h"            // Geometric factors
-#include "../qfunctions/incompLinElas.h"           // Linear elasticity
-#include "../qfunctions/incompHyperSS.h"           // Hyperelasticity small strain
-#include "../qfunctions/incompHyperFS.h"           // Hyperelasticity finite strain
+#include "../qfunctions/incompLinElas.h"     // Linear elasticity
+#include "../qfunctions/incompHyperSS.h"     // Hyperelasticity small strain
+#include "../qfunctions/incompHyperFS.h"     // Hyperelasticity finite strain
 #include "../qfunctions/constantForce.h"     // Constant forcing function
 #include "../qfunctions/manufacturedForce.h" // Manufactured solution forcing
 #include "../qfunctions/manufacturedTrue.h"  // Manufactured true solution
+
+#include <ceed-backend.h>  // Need to move GetNumQuadraturePoints1D to public API 
 
 // -----------------------------------------------------------------------------
 // Problem options
@@ -183,59 +185,58 @@ PetscErrorCode CreateRestrictionPlex(Ceed ceed, CeedInterlaceMode imode,
 };
 
 // Create pressure basis from displacement basis
-// PetscErrorCode CreatePressureBasis(Ceed ceed, CeedInt degree, CeedBasis basisu,
-//                                    CeedBasis *basisp) {
-//   PetscInt ierr;
-//   PetscInt Q1d, dim = 3, P, Q;
-//   PetscScalar *qref1d, *qweight1d;
-//   PetscScalar *interp, *grad, *qref, *qweight;
-//
-//   // Retrieve displacement basis information
-//   CeedBasisGetNumQuadraturePoints1D(basisu, &Q1d);
-//   CeedBasisGetQRef(basisu, &qref1d);
-//   CeedBasisGetQWeights(basisu, &qweight1d);
-//
-//   // Build qref, qweight
-//   P = 1 + dim*degree;
-//   Q = Q1d*Q1d*Q1d;
-//   ierr = PetscMalloc(dim*Q1d*Q1d*Q1d * sizeof(CeedScalar), &qref);
-//   CHKERRQ(ierr);
-//   ierr = PetscMalloc(Q1d*Q1d*Q1d * sizeof(CeedScalar), &qweight); CHKERRQ(ierr);
-//   for PetscInt q = 0; q < Q; q++) {
-//     qweight[q] = 1;
-//     for (PetscInt d = 0; d < dim; d++) {
-//       Petscint i = (q / CeedPowInt(Q1d, d)) % Q1d;
-//       qweight[q] *= qweight1d[i];
-//       qref[d*Q + q] = qref1d[i];
-//     }
-//   }
-//
-//   // Build interp, grad
-//   ierr = PetscMalloc(P*Q1d*Q1d*Q1d * sizeof(CeedScalar), &interp);
-//   CHKERRQ(ierr);
-//   ierr = PetscMalloc(p*dim*Q1d*Q1d*Q1d * sizeof(CeedScalar), &grad);
-//   CHKERRQ(ierr);
-//   for PetscInt q = 0; q < Q; q++)
-//     for PetscInt p = 0; p < P; p++) {
-//       interp[q*P + p] = p == 0 ? 1 : qref[(p-1)*Q + q];
-//       for (PetscInt d = 0; d < dim; d++) {
-//         grad[d*Q*P + q*P + p] = p == q ? 1. : 0.;
-//       }
-//     }
-//
-//
-//   // Create basis
-//   CeedBasisCreateH1(ceed, CEED_HEX, 1, P, Q, interp, grad, qref,
-//                     qweight, basisp);
-//
-//   // Cleanup
-//   ierr = PetscFree(interp); CHKERRQ(ierr);
-//   ierr = PetscFree(grad); CHKERRQ(ierr);
-//   ierr = PetscFree(qref); CHKERRQ(ierr);
-//   ierr = PetscFree(qweight); CHKERRQ(ierr);
-//
-//   return 0;
-// };
+PetscErrorCode CreatePressureBasis(Ceed ceed, CeedInt degree, CeedBasis basisu,
+                                   CeedBasis *basisp) {
+  PetscInt ierr;
+  PetscInt Q1d, dim = 3, P, Q;
+  PetscScalar *qref1d, *qweight1d;
+  PetscScalar *interp, *grad, *qref, *qweight;
+
+  // Retrieve displacement basis information
+  CeedBasisGetNumQuadraturePoints1D(basisu, &Q1d);
+  CeedBasisGetQRef(basisu, &qref1d);
+  CeedBasisGetQWeights(basisu, &qweight1d);
+
+  // Build qref, qweight
+  P = 1 + dim*degree;
+  Q = Q1d*Q1d*Q1d;
+  ierr = PetscMalloc(dim*Q1d*Q1d*Q1d * sizeof(CeedScalar), &qref);
+  CHKERRQ(ierr);
+  ierr = PetscMalloc(Q1d*Q1d*Q1d * sizeof(CeedScalar), &qweight); CHKERRQ(ierr);
+  for (PetscInt q = 0; q < Q; q++) {
+    qweight[q] = 1;
+    for (PetscInt d = 0; d < dim; d++) {
+      PetscInt i = (q / CeedIntPow(Q1d, d)) % Q1d;
+      qweight[q] *= qweight1d[i];
+      qref[d*Q + q] = qref1d[i];
+    }
+  }
+
+  // Build interp, grad
+  ierr = PetscMalloc(P*Q1d*Q1d*Q1d * sizeof(CeedScalar), &interp);
+  CHKERRQ(ierr);
+  ierr = PetscMalloc(P*dim*Q1d*Q1d*Q1d * sizeof(CeedScalar), &grad);
+  CHKERRQ(ierr);
+  for (PetscInt q = 0; q < Q; q++)
+    for (PetscInt p = 0; p < P; p++) {
+      interp[q*P + p] = p == 0 ? 1 : qref[(p-1)*Q + q];
+      for (PetscInt d = 0; d < dim; d++) {
+        grad[d*Q*P + q*P + p] = p == q ? 1. : 0.;
+      }
+    }
+
+  // Create basis
+  CeedBasisCreateH1(ceed, CEED_HEX, 1, P, Q, interp, grad, qref,
+                    qweight, basisp);
+
+  // Cleanup
+  ierr = PetscFree(interp); CHKERRQ(ierr);
+  ierr = PetscFree(grad); CHKERRQ(ierr);
+  ierr = PetscFree(qref); CHKERRQ(ierr);
+  ierr = PetscFree(qweight); CHKERRQ(ierr);
+
+  return 0;
+};
 
 // Set up libCEED for a given degree
 PetscErrorCode SetupLibceedFineLevel(DM dm, Ceed ceed, AppCtx appCtx,
