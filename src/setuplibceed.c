@@ -27,8 +27,6 @@
 #include "../qfunctions/manufacturedForce.h" // Manufactured solution forcing
 #include "../qfunctions/manufacturedTrue.h"  // Manufactured true solution
 
-#include <ceed-backend.h>  // Need to move GetNumQuadraturePoints1D to public API 
-
 // -----------------------------------------------------------------------------
 // Problem options
 // -----------------------------------------------------------------------------
@@ -189,7 +187,7 @@ PetscErrorCode CreatePressureBasis(Ceed ceed, CeedInt degree, CeedBasis basisu,
                                    CeedBasis *basisp) {
   PetscInt ierr;
   PetscInt Q1d, dim = 3, P, Q;
-  PetscScalar *qref1d, *qweight1d;
+  const PetscScalar *qref1d, *qweight1d;
   PetscScalar *interp, *grad, *qref, *qweight;
 
   // Retrieve displacement basis information
