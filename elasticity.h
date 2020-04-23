@@ -43,14 +43,14 @@ struct Physics_private {
 typedef enum {
   ELAS_INCOMPLIN = 0, ELAS_INCOMPHYPER_SS = 1, ELAS_INCOMPHYPER_FS = 2
 } problemType;
-static const char *const problemTypes[] = {"incomplinElas",
-                                           "incomphyperSS",
-                                           "incomphyperFS",
+static const char *const problemTypes[] = {"linElas",
+                                           "hyperSS",
+                                           "hyperFS",
                                            "problemType","ELAS_",0
                                           };
-static const char *const problemTypesForDisp[] = {"Incompressible Linear elasticity",
-                                                  "Incompressible Hyper elasticity small strain",
-                                                  "Incompressible Hyper elasticity finite strain"
+static const char *const problemTypesForDisp[] = {"Linear elasticity",
+                                                  "Hyper elasticity small strain",
+                                                  "Hyper elasticity finite strain"
                                                  };
 
 // Forcing function options
@@ -116,10 +116,10 @@ struct AppCtx_private {
   PetscInt      numLevels;
   PetscInt      *levelDegrees;
   PetscInt      numIncrements;                        // Number of steps
-  PetscInt      bcZeroFaces[16], bcClampFaces[16];
-  PetscInt      bcZeroCount, bcClampCount;
-  PetscBool     bcClampTranslate[16];
-  PetscScalar   bcClampMax[16][4];
+  PetscInt      bcClampFaces[16];
+  PetscInt      bcClampCount;
+  PetscScalar   bcClampMax[16][7];
+  PetscScalar   forcingVector[3];
 };
 
 // Problem specific data
@@ -219,13 +219,8 @@ PetscErrorCode SetupDMByDegree(DM dm, AppCtx appCtx, PetscInt order,
 PetscErrorCode CeedDataDestroy(CeedInt level, CeedData data);
 
 // Get libCEED restriction data from DMPlex
-PetscErrorCode CreateRestrictionPlex(Ceed ceed, CeedInterlaceMode imode,
-                                     CeedInt P, CeedInt ncomp,
+PetscErrorCode CreateRestrictionPlex(Ceed ceed, CeedInt P, CeedInt ncomp,
                                      CeedElemRestriction *Erestrict, DM dm);
-
-// Create pressure basis from displacement basis
-PetscErrorCode CreatePressureBasis(Ceed ceed, CeedInt degree, CeedBasis basisu,
-                                   CeedBasis *basisp);
 
 // Set up libCEED for a given degree
 PetscErrorCode SetupLibceedFineLevel(DM dm, Ceed ceed, AppCtx appCtx,
@@ -307,19 +302,10 @@ PetscErrorCode BCMMS(PetscInt dim, PetscReal loadIncrement,
                      const PetscReal coords[], PetscInt ncompu,
                      PetscScalar *u, void *ctx);
 
-// BCZero - fix boundary values at zero
-PetscErrorCode BCZero(PetscInt dim, PetscReal loadIncrement,
-                      const PetscReal coords[], PetscInt ncompu,
-                      PetscScalar *u, void *ctx);
-
-// BCClampTranslate - translate boundary values at fraction of load increment
-PetscErrorCode BCClampTranslate(PetscInt dim, PetscReal loadIncrement,
-                                const PetscReal coords[], PetscInt ncompu,
-                                PetscScalar *u, void *ctx);
-
-// BCClampRotate - rotate boundary values at fraction of load increment
-PetscErrorCode BCClampRotate(PetscInt dim, PetscReal loadIncrement,
-                             const PetscReal coords[], PetscInt ncompu,
-                             PetscScalar *u, void *ctx);
+// BCClamp - fix boundary values with affine transformation at fraction of load
+//   increment
+PetscErrorCode BCClamp(PetscInt dim, PetscReal loadIncrement,
+                       const PetscReal coords[], PetscInt ncompu,
+                       PetscScalar *u, void *ctx);
 
 #endif //setup_h
